@@ -1,0 +1,470 @@
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local OrionLib = {
+	Elements = {},
+	Flags = {},
+	Folder = nil,
+	SaveCfg = false
+}
+
+local Orion = Instance.new("ScreenGui")
+Orion.Name = "Orion"
+Orion.Parent = game.CoreGui -- Simplified parenting for broader compatibility
+if syn and syn.protect_gui then
+	syn.protect_gui(Orion)
+end
+
+local function Create(Name, Properties, Children)
+	local Object = Instance.new(Name)
+	for i, v in pairs(Properties or {}) do
+		Object[i] = v
+	end
+	for _, child in pairs(Children or {}) do
+		child.Parent = Object
+	end
+	return Object
+end
+
+local function CreateElement(ElementName, ElementFunction)
+	OrionLib.Elements[ElementName] = ElementFunction
+end
+
+local function MakeElement(ElementName, ...)
+	local success, result = pcall(OrionLib.Elements[ElementName], ...)
+	if not success then
+		warn("Error creating element " .. ElementName .. ": " .. result)
+	end
+	return result
+end
+
+local NotificationHolder = Create("Frame", {
+	Parent = Orion,
+	Position = UDim2.new(1, -25, 1, -25),
+	Size = UDim2.new(0, 300, 1, -25),
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundTransparency = 1
+}, {
+	Create("UIListLayout", {
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		Padding = UDim.new(0, 5)
+	})
+})
+
+function OrionLib:MakeNotification(Config)
+	spawn(function()
+		Config.Name = Config.Name or "Notification"
+		Config.Content = Config.Content or "Test"
+		Config.Time = Config.Time or 3
+
+		local NotificationFrame = Create("Frame", {
+			Parent = NotificationHolder,
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+			BorderSizePixel = 0
+		}, {
+			Create("UICorner", {CornerRadius = UDim.new(0, 10)}),
+			Create("UIStroke", {Color = Color3.fromRGB(93, 93, 93), Thickness = 1}),
+			Create("UIPadding", {
+				PaddingBottom = UDim.new(0, 12),
+				PaddingLeft = UDim.new(0, 12),
+				PaddingRight = UDim.new(0, 12),
+				PaddingTop = UDim.new(0, 12)
+			}),
+			Create("TextLabel", {
+				Name = "Title",
+				Text = Config.Name,
+				Font = Enum.Font.GothamBold,
+				TextSize = 15,
+				TextColor3 = Color3.fromRGB(240, 240, 240),
+				Size = UDim2.new(1, 0, 0, 20),
+				BackgroundTransparency = 1
+			}),
+			Create("TextLabel", {
+				Name = "Content",
+				Text = Config.Content,
+				Font = Enum.Font.GothamSemibold,
+				TextSize = 14,
+				TextColor3 = Color3.fromRGB(200, 200, 200),
+				Size = UDim2.new(1, 0, 0, 0),
+				Position = UDim2.new(0, 0, 0, 25),
+				BackgroundTransparency = 1,
+				TextWrapped = true,
+				AutomaticSize = Enum.AutomaticSize.Y
+			})
+		})
+
+		wait(Config.Time)
+		NotificationFrame:Destroy()
+	end)
+end
+
+function OrionLib:Init()
+	if OrionLib.SaveCfg then
+		local success, result = pcall(function()
+			if isfile(OrionLib.Folder .. "/" .. game.GameId .. ".txt") then
+				local Data = HttpService:JSONDecode(readfile(OrionLib.Folder .. "/" .. game.GameId .. ".txt"))
+				for flag, value in pairs(Data) do
+					if OrionLib.Flags[flag] then
+						spawn(function()
+							OrionLib.Flags[flag]:Set(value)
+						end)
+					end
+				end
+			end
+		end)
+		if not success then
+			warn("Config load error: " .. result)
+		end
+	end
+end
+
+function OrionLib:MakeWindow(Config)
+	Config = Config or {}
+	Config.Name = Config.Name or "Orion Library"
+	Config.ConfigFolder = Config.ConfigFolder or Config.Name
+	Config.SaveConfig = Config.SaveConfig or false
+	OrionLib.Folder = Config.ConfigFolder
+	OrionLib.SaveCfg = Config.SaveConfig
+
+	if Config.SaveConfig then
+		local success, result = pcall(function()
+			if not isfolder(Config.ConfigFolder) then
+				makefolder(Config.ConfigFolder)
+			end
+		end)
+		if not success then
+			warn("Config folder error: " .. result)
+		end
+	end
+
+	local ToggleButtonGui = Create("ScreenGui", {
+		Name = "OrionToggleButton",
+		Parent = game.CoreGui,
+		ResetOnSpawn = false
+	})
+	if syn and syn.protect_gui then
+		syn.protect_gui(ToggleButtonGui)
+	end
+
+	local ToggleButton = Create("ImageButton", {
+		Parent = ToggleButtonGui,
+		Size = UDim2.new(0, 50, 0, 50),
+		Position = UDim2.new(0, 10, 0, 10),
+		BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+		Image = "rbxassetid://5108877306",
+		ImageColor3 = Color3.fromRGB(240, 240, 240),
+		ZIndex = 10
+	}, {
+		Create("UICorner", {CornerRadius = UDim.new(0, 10)}),
+		Create("UIStroke", {Color = Color3.fromRGB(60, 60, 60), Thickness = 1})
+	})
+
+	local TabHolder = Create("ScrollingFrame", {
+		Size = UDim2.new(1, 0, 1, -50),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60),
+		CanvasSize = UDim2.new(0, 0, 0, 0)
+	}, {
+		Create("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}),
+		Create("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingTop = UDim.new(0, 8)})
+	})
+
+	TabHolder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		TabHolder.CanvasSize = UDim2.new(0, 0, 0, TabHolder.UIListLayout.AbsoluteContentSize.Y + 16)
+	end)
+
+	local CloseBtn = Create("TextButton", {
+		Size = UDim2.new(0, 18, 0, 18),
+		Position = UDim2.new(1, -30, 0, 10),
+		BackgroundTransparency = 1,
+		Text = "",
+		AutoButtonColor = false
+	}, {
+		Create("ImageLabel", {
+			Size = UDim2.new(1, 0, 1, 0),
+			BackgroundTransparency = 1,
+			Image = "rbxassetid://7072725342",
+			ImageColor3 = Color3.fromRGB(240, 240, 240)
+		})
+	})
+
+	local MainWindow = Create("Frame", {
+		Parent = Orion,
+		Position = UDim2.new(0.5, -307, 0.5, -172),
+		Size = UDim2.new(0, 615, 0, 344),
+		BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+		BorderSizePixel = 0,
+		ClipsDescendants = true
+	}, {
+		Create("UICorner", {CornerRadius = UDim.new(0, 10)}),
+		Create("TextLabel", {
+			Text = Config.Name,
+			Font = Enum.Font.GothamBlack,
+			TextSize = 20,
+			TextColor3 = Color3.fromRGB(240, 240, 240),
+			Size = UDim2.new(1, -30, 0, 50),
+			Position = UDim2.new(0, 15, 0, 0),
+			BackgroundTransparency = 1
+		}),
+		CloseBtn,
+		Create("Frame", {
+			Size = UDim2.new(0, 150, 1, -50),
+			Position = UDim2.new(0, 0, 0, 50),
+			BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+		}, {
+			Create("UICorner", {CornerRadius = UDim.new(0, 10)}),
+			TabHolder
+		})
+	})
+
+	local isGuiVisible = true
+	local UIHidden = false
+
+	local function ToggleGui()
+		isGuiVisible = not isGuiVisible
+		MainWindow.Visible = isGuiVisible
+		UIHidden = not isGuiVisible
+		OrionLib:MakeNotification({
+			Name = "Interface",
+			Content = isGuiVisible and "Interface shown" or "Interface hidden",
+			Time = 3
+		})
+	end
+
+	ToggleButton.Activated:Connect(ToggleGui)
+
+	UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+		if not GameProcessed and Input.KeyCode == Enum.KeyCode.RightShift and UIHidden then
+			ToggleGui()
+		end
+	end)
+
+	CloseBtn.MouseButton1Click:Connect(function()
+		MainWindow.Visible = false
+		isGuiVisible = false
+		UIHidden = true
+		OrionLib:MakeNotification({
+			Name = "Interface Hidden",
+			Content = "Tap the toggle button or press RightShift to reopen",
+			Time = 5
+		})
+	end)
+
+	-- Debug notification to confirm script execution
+	OrionLib:MakeNotification({
+		Name = "Debug",
+		Content = "Script loaded successfully",
+		Time = 5
+	})
+
+	local TabFunction = {}
+	function TabFunction:MakeTab(TabConfig)
+		TabConfig = TabConfig or {}
+		TabConfig.Name = TabConfig.Name or "Tab"
+
+		local TabFrame = Create("TextButton", {
+			Parent = TabHolder,
+			Size = UDim2.new(1, 0, 0, 30),
+			BackgroundTransparency = 1,
+			Text = "",
+			AutoButtonColor = false
+		}, {
+			Create("TextLabel", {
+				Text = TabConfig.Name,
+				Font = Enum.Font.GothamSemibold,
+				TextSize = 14,
+				TextColor3 = Color3.fromRGB(240, 240, 240),
+				Size = UDim2.new(1, -10, 1, 0),
+				Position = UDim2.new(0, 10, 0, 0),
+				BackgroundTransparency = 1
+			})
+		})
+
+		local Container = Create("ScrollingFrame", {
+			Parent = MainWindow,
+			Position = UDim2.new(0, 150, 0, 50),
+			Size = UDim2.new(1, -150, 1, -50),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ScrollBarThickness = 5,
+			ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60),
+			CanvasSize = UDim2.new(0, 0, 0, 0),
+			Visible = false
+		}, {
+			Create("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}),
+			Create("UIPadding", {PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 15)})
+		})
+
+		Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			Container.CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + 30)
+		end)
+
+		if not TabHolder:FindFirstChildWhichIsA("TextButton") then
+			Container.Visible = true
+			TabFrame.TextLabel.TextTransparency = 0
+		else
+			TabFrame.TextLabel.TextTransparency = 0.4
+		end
+
+		TabFrame.MouseButton1Click:Connect(function()
+			for _, tab in pairs(TabHolder:GetChildren()) do
+				if tab:IsA("TextButton") then
+					tab.TextLabel.TextTransparency = 0.4
+				end
+			end
+			for _, container in pairs(MainWindow:GetChildren()) do
+				if container:IsA("ScrollingFrame") then
+					container.Visible = false
+				end
+			end
+			TabFrame.TextLabel.TextTransparency = 0
+			Container.Visible = true
+		end)
+
+		local ElementFunction = {}
+		function ElementFunction:AddButton(ButtonConfig)
+			ButtonConfig = ButtonConfig or {}
+			ButtonConfig.Name = ButtonConfig.Name or "Button"
+			ButtonConfig.Callback = ButtonConfig.Callback or function() end
+
+			local ButtonFrame = Create("TextButton", {
+				Parent = Container,
+				Size = UDim2.new(1, 0, 0, 33),
+				BackgroundColor3 = Color3.fromRGB(32, 32, 32),
+				BorderSizePixel = 0,
+				AutoButtonColor = false,
+				Text = ""
+			}, {
+				Create("UICorner", {CornerRadius = UDim.new(0, 5)}),
+				Create("UIStroke", {Color = Color3.fromRGB(60, 60, 60)}),
+				Create("TextLabel", {
+					Text = ButtonConfig.Name,
+					Font = Enum.Font.GothamBold,
+					TextSize = 15,
+					TextColor3 = Color3.fromRGB(240, 240, 240),
+					Size = UDim2.new(1, -12, 1, 0),
+					Position = UDim2.new(0, 12, 0, 0),
+					BackgroundTransparency = 1
+				})
+			})
+
+			ButtonFrame.MouseButton1Click:Connect(function()
+				spawn(ButtonConfig.Callback)
+			end)
+
+			local Button = {}
+			function Button:Set(Text)
+				ButtonFrame.TextLabel.Text = Text
+			end
+			return Button
+		end
+
+		function ElementFunction:AddToggle(ToggleConfig)
+			ToggleConfig = ToggleConfig or {}
+			ToggleConfig.Name = ToggleConfig.Name or "Toggle"
+			ToggleConfig.Default = ToggleConfig.Default or false
+			ToggleConfig.Callback = ToggleConfig.Callback or function() end
+			ToggleConfig.Flag = ToggleConfig.Flag or nil
+			ToggleConfig.Save = ToggleConfig.Save or false
+
+			local Toggle = {Value = ToggleConfig.Default, Save = ToggleConfig.Save}
+
+			local ToggleFrame = Create("TextButton", {
+				Parent = Container,
+				Size = UDim2.new(1, 0, 0, 38),
+				BackgroundColor3 = Color3.fromRGB(32, 32, 32),
+				BorderSizePixel = 0,
+				AutoButtonColor = false,
+				Text = ""
+			}, {
+				Create("UICorner", {CornerRadius = UDim.new(0, 5)}),
+				Create("UIStroke", {Color = Color3.fromRGB(60, 60, 60)}),
+				Create("TextLabel", {
+					Text = ToggleConfig.Name,
+					Font = Enum.Font.GothamBold,
+					TextSize = 15,
+					TextColor3 = Color3.fromRGB(240, 240, 240),
+					Size = UDim2.new(1, -12, 1, 0),
+					Position = UDim2.new(0, 12, 0, 0),
+					BackgroundTransparency = 1
+				}),
+				Create("Frame", {
+					Name = "ToggleBox",
+					Size = UDim2.new(0, 24, 0, 24),
+					Position = UDim2.new(1, -24, 0.5, 0),
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					BackgroundColor3 = ToggleConfig.Default and Color3.fromRGB(9, 99, 195) or Color3.fromRGB(60, 60, 60)
+				}, {
+					Create("UICorner", {CornerRadius = UDim.new(0, 4)}),
+					Create("ImageLabel", {
+						Name = "Ico",
+						Size = UDim2.new(0, ToggleConfig.Default and 20 or 8, 0, ToggleConfig.Default and 20 or 8),
+						AnchorPoint = Vector2.new(0.5, 0.5),
+						Position = UDim2.new(0.5, 0, 0.5, 0),
+						BackgroundTransparency = 1,
+						Image = "rbxassetid://3944680095",
+						ImageTransparency = ToggleConfig.Default and 0 or 1
+					})
+				})
+			})
+
+			function Toggle:Set(Value)
+				Toggle.Value = Value
+				ToggleFrame.ToggleBox.BackgroundColor3 = Value and Color3.fromRGB(9, 99, 195) or Color3.fromRGB(60, 60, 60)
+				ToggleFrame.ToggleBox.Ico.ImageTransparency = Value and 0 or 1
+				ToggleFrame.ToggleBox.Ico.Size = Value and UDim2.new(0, 20, 0, 20) or UDim2.new(0, 8, 0, 8)
+				ToggleConfig.Callback(Value)
+			end
+
+			ToggleFrame.MouseButton1Click:Connect(function()
+				Toggle:Set(not Toggle.Value)
+				if ToggleConfig.Save then
+					local success, result = pcall(function()
+						local Data = {}
+						for flag, toggle in pairs(OrionLib.Flags) do
+							if toggle.Save then
+								Data[flag] = toggle.Value
+							end
+						end
+						writefile(OrionLib.Folder .. "/" .. game.GameId .. ".txt", HttpService:JSONEncode(Data))
+					end)
+					if not success then
+						warn("Config save error: " .. result)
+					end
+				end
+			end)
+
+			if ToggleConfig.Flag then
+				OrionLib.Flags[ToggleConfig.Flag] = Toggle
+			end
+			Toggle:Set(ToggleConfig.Default)
+			return Toggle
+		end
+
+		return ElementFunction
+	end
+
+	CreateElement("Button", function(Config)
+		return ElementFunction:AddButton(Config)
+	end)
+
+	CreateElement("Toggle", function(Config)
+		return ElementFunction:AddToggle(Config)
+	end)
+
+	return TabFunction
+end
+
+function OrionLib:Destroy()
+	Orion:Destroy()
+end
+
+return OrionLib
