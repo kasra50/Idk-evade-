@@ -9,11 +9,21 @@ GuiLibrary.Button.__index = GuiLibrary.Button
 function GuiLibrary.Button.new(parent, position, size, initialLabel)
     local self = setmetatable({}, GuiLibrary.Button)
     
-    -- Create Roblox GUI elements
-    self.ScreenGui = Instance.new("ScreenGui")
-    self.ScreenGui.Parent = parent
-    self.ScreenGui.ResetOnSpawn = false
+    -- Verify parent exists
+    if not parent then
+        warn("Error: No parent provided for button")
+        return nil
+    end
     
+    -- Create ScreenGui
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Name = "ToggleButtonGui"
+    self.ScreenGui.IgnoreGuiInset = true -- Account for Roblox top bar
+    self.ScreenGui.Enabled = true
+    self.ScreenGui.Parent = parent
+    print("ScreenGui created and parented to", parent.Name)
+    
+    -- Create TextButton
     self.Button = Instance.new("TextButton")
     self.Button.Size = UDim2.new(0, size.X, 0, size.Y)
     self.Button.Position = UDim2.new(0, position.X, 0, position.Y)
@@ -21,7 +31,9 @@ function GuiLibrary.Button.new(parent, position, size, initialLabel)
     self.Button.BackgroundColor3 = Color3.new(1, 1, 1) -- White background
     self.Button.TextColor3 = Color3.new(0, 0, 0) -- Black text
     self.Button.BorderColor3 = Color3.new(0, 0, 0) -- Black border
+    self.Button.TextScaled = true -- Scale text to fit
     self.Button.Parent = self.ScreenGui
+    print("Button created at position", position.X, position.Y)
     
     self.IsOpen = false -- Tracks open/close state
     self.Label = initialLabel
@@ -39,19 +51,40 @@ function GuiLibrary.Button:OnClick()
     self.IsOpen = not self.IsOpen -- Toggle state
     self.Label = self.IsOpen and "Close" or "Open" -- Update label
     self.Button.Text = self.Label -- Update button text
+    print("Button clicked, new state:", self.Label)
 end
 
 -- Destroy the button
 function GuiLibrary.Button:Destroy()
     if self.ScreenGui then
         self.ScreenGui:Destroy()
+        print("Button destroyed")
     end
 end
 
--- Example usage
+-- Example usage with delayed PlayerGui access
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local playerGui = player.PlayerGui
 
--- Create a button at position (100, 100) with size 100x50
-local button = GuiLibrary.Button.new(playerGui, Vector2.new(100, 100), Vector2.new(100, 50), "Open")
+-- Wait for PlayerGui to be available
+local playerGui
+local attempts = 0
+while not playerGui and attempts < 10 do
+    playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then
+        warn("PlayerGui not found, retrying...")
+        wait(0.5)
+        attempts = attempts + 1
+    end
+end
+
+if playerGui then
+    print("PlayerGui found, creating button")
+    -- Create a centered button with size 100x50
+    local button = GuiLibrary.Button.new(playerGui, Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2 - 50, workspace.CurrentCamera.ViewportSize.Y / 2 - 25), Vector2.new(100, 50), "Open")
+    if not button then
+        warn("Failed to create button")
+    end
+else
+    warn("Error: Could not find PlayerGui after retries")
+end
