@@ -1,309 +1,67 @@
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
 
--- Wait for LocalPlayer to avoid "infinite yield" errors
-local LocalPlayer
-repeat
-    LocalPlayer = Players.LocalPlayer
-    wait()
-until LocalPlayer
+-- ایجاد ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SimpleGUI"
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
-local OrionLib = {
-    Flags = {},
-    SelectedTheme = {
-        Main = Color3.fromRGB(25, 25, 25),
-        Second = Color3.fromRGB(32, 32, 32),
-        Stroke = Color3.fromRGB(60, 60, 60),
-        Text = Color3.fromRGB(240, 240, 240)
-    }
-}
+-- ایجاد دکمه اصلی با تصویر رندوم
+local button = Instance.new("ImageButton")
+button.Size = UDim2.new(0, 100, 0, 100)
+button.Position = UDim2.new(0.5, -50, 0.5, -50)
+button.BackgroundTransparency = 1
+button.Image = "rbxassetid://1234567890" -- جای این آیدی، آیدی تصویر رندوم دلخواه رو بذار
+button.Parent = screenGui
 
--- Create ScreenGui and ensure it’s parented
-local Orion = Instance.new("ScreenGui")
-Orion.Name = "Orion"
-Orion.Parent = game:GetService("CoreGui")
+-- ایجاد فریم GUI
+local guiFrame = Instance.new("Frame")
+guiFrame.Size = UDim2.new(0, 200, 0, 300)
+guiFrame.Position = UDim2.new(0.5, -100, 0.5, -150)
+guiFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+guiFrame.BackgroundTransparency = 0.2
+guiFrame.Visible = false
+guiFrame.Parent = screenGui
 
-local function Create(Name, Props, Children)
-    local Object = Instance.new(Name)
-    for i, v in pairs(Props or {}) do
-        Object[i] = v
-    end
-    for _, child in pairs(Children or {}) do
-        child.Parent = Object
-    end
-    return Object
-end
+-- اضافه کردن گوشه‌های گرد
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = guiFrame
 
-local function AddDraggingFunctionality(DragPoint, Main)
-    if not DragPoint or not Main then
-        warn("Dragging functionality failed: DragPoint or Main is nil")
-        return
-    end
-    local Dragging, DragInput, MousePos, FramePos
-    local ConnectionBegan, ConnectionChanged
-    local function StartDragging(Input)
-        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-            Dragging = true
-            MousePos = Input.Position
-            FramePos = Main.Position
-            ConnectionBegan = Input.Changed:Connect(function()
-                if Input.UserInputState == Enum.UserInputState.End then
-                    Dragging = false
-                    ConnectionBegan:Disconnect()
-                end
-            end)
-        end
-    end
-    local function UpdateDrag(Input)
-        if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
-            DragInput = Input
-        end
-    end
-    local function MoveFrame(Input)
-        if Input == DragInput and Dragging then
-            local Delta = Input.Position - MousePos
-            TweenService:Create(Main, TweenInfo.new(0.1, Enum.EasingStyle.Linear), {
-                Position = UDim2.new(FramePos.X.Scale, FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)
-            }):Play()
-        end
-    end
-    DragPoint.InputBegan:Connect(StartDragging)
-    DragPoint.InputChanged:Connect(UpdateDrag)
-    UserInputService.InputChanged:Connect(MoveFrame)
-end
+-- متغیر برای وضعیت GUI
+local isOpen = false
 
-local function MakeWindow(WindowConfig)
-    local Minimized = false
-    WindowConfig = WindowConfig or {}
-    WindowConfig.Name = WindowConfig.Name or "Orion GUI"
-
-    -- Main Window
-    local MainWindow = Create("Frame", {
-        Parent = Orion,
-        Position = UDim2.new(0.5, -200, 0.5, -150),
-        Size = UDim2.new(0, 400, 0, 300),
-        BackgroundColor3 = OrionLib.SelectedTheme.Main,
-        ClipsDescendants = true
-    }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
-        Create("UIStroke", { Color = OrionLib.SelectedTheme.Stroke })
-    })
-
-    if not MainWindow.Parent then
-        warn("MainWindow failed to parent to Orion")
-        return
-    end
-
-    local DragPoint = Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 30),
-        BackgroundTransparency = 1
-    })
-
-    local WindowName = Create("TextLabel", {
-        Position = UDim2.new(0, 10, 0, 0),
-        Size = UDim2.new(1, -80, 0, 30),
-        Text = WindowConfig.Name,
-        TextColor3 = OrionLib.SelectedTheme.Text,
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
-        BackgroundTransparency = 1,
-        TextXAlignment = Enum.TextXAlignment.Left
-    })
-
-    local CloseBtn = Create("TextButton", {
-        Position = UDim2.new(1, -30, 0, 5),
-        Size = UDim2.new(0, 20, 0, 20),
-        Text = "X",
-        TextColor3 = OrionLib.SelectedTheme.Text,
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Gotham,
-        TextSize = 14
-    })
-
-    local MinimizeBtn = Create("TextButton", {
-        Position = UDim2.new(1, -60, 0, 5),
-        Size = UDim2.new(0, 20, 0, 20),
-        Text = "-",
-        TextColor3 = OrionLib.SelectedTheme.Text,
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Gotham,
-        TextSize = 14
-    })
-
-    local TabHolder = Create("ScrollingFrame", {
-        Position = UDim2.new(0, 0, 0, 30),
-        Size = UDim2.new(0, 100, 1, -30),
-        BackgroundTransparency = 1,
-        ScrollBarThickness = 2,
-        ScrollBarImageColor3 = OrionLib.SelectedTheme.Stroke,
-        CanvasSize = UDim2.new(0, 0, 0, 0)
-    }, {
-        Create("UIListLayout", { Padding = UDim.new(0, 5) }),
-        Create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingTop = UDim.new(0, 5) })
-    })
-
-    local ContentFrame = Create("Frame", {
-        Position = UDim2.new(0, 100, 0, 30),
-        Size = UDim2.new(1, -100, 1, -30),
-        BackgroundColor3 = OrionLib.SelectedTheme.Second,
-        BackgroundTransparency = 0.1
-    }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 8) })
-    })
-
-    -- Parenting
-    DragPoint.Parent = MainWindow
-    WindowName.Parent = MainWindow
-    CloseBtn.Parent = MainWindow
-    MinimizeBtn.Parent = MainWindow
-    TabHolder.Parent = MainWindow
-    ContentFrame.Parent = MainWindow
-
-    -- Toggle Button
-    local ToggleButton = Create("Frame", {
-        Parent = Orion,
-        Position = UDim2.new(0, 10, 0, 10),
-        Size = UDim2.new(0, 40, 0, 40),
-        BackgroundColor3 = OrionLib.SelectedTheme.Main,
-        ZIndex = 10
-    }, {
-        Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
-        Create("UIStroke", { Color = OrionLib.SelectedTheme.Stroke })
-    })
-
-    local ToggleButtonClick = Create("TextButton", {
-        Size = UDim2.new(1, 0, 1, 0),
-        Text = "☰",
-        TextColor3 = OrionLib.SelectedTheme.Text,
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Gotham,
-        TextSize = 16,
-        Parent = ToggleButton
-    })
-
-    if not ToggleButtonClick.Parent then
-        warn("ToggleButtonClick failed to parent to ToggleButton")
-        return
-    end
-
-    -- Dragging functionality
-    AddDraggingFunctionality(DragPoint, MainWindow)
-    AddDraggingFunctionality(ToggleButton, ToggleButton)
-
-    -- Toggle Button Click/Touch
-    local function ToggleGUI()
-        MainWindow.Visible = not MainWindow.Visible
-    end
-
-    ToggleButtonClick.MouseButton1Click:Connect(ToggleGUI)
-    ToggleButtonClick.InputBegan:Connect(function(Input)
-        if Input.UserInputType == Enum.UserInputType.Touch then
-            ToggleGUI()
-        end
-    end)
-
-    -- Close Button
-    CloseBtn.MouseButton1Click:Connect(function()
-        MainWindow.Visible = false
-        ToggleButton.Visible = true
-    })
-
-    -- Minimize Button
-    MinimizeBtn.MouseButton1Click:Connect(function()
-        Minimized = not Minimized
-        TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-            Size = Minimized and UDim2.new(0, 200, 0, 30) or UDim2.new(0, 400, 0, 300)
+-- تابع برای باز و بسته کردن GUI
+local function toggleGUI()
+    isOpen = not isOpen
+    if isOpen then
+        guiFrame.Visible = true
+        TweenService:Create(guiFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0,
+            Size = UDim2.new(0, 200, 0, 300)
         }):Play()
-        ContentFrame.Visible = not Minimized
-        TabHolder.Visible = not Minimized
-    end)
-
-    local TabFunction = {}
-    function TabFunction:MakeTab(TabConfig)
-        TabConfig = TabConfig or {}
-        TabConfig.Name = TabConfig.Name or "Tab"
-
-        local TabButton = Create("TextButton", {
-            Parent = TabHolder,
-            Size = UDim2.new(1, -10, 0, 25),
-            Text = TabConfig.Name,
-            TextColor3 = OrionLib.SelectedTheme.Text,
+    else
+        TweenService:Create(guiFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundTransparency = 0.2,
-            BackgroundColor3 = OrionLib.SelectedTheme.Second,
-            Font = Enum.Font.Gotham,
-            TextSize = 14
-        }, {
-            Create("UICorner", { CornerRadius = UDim.new(0, 6) })
-        })
-
-        local TabContainer = Create("ScrollingFrame", {
-            Parent = ContentFrame,
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            ScrollBarThickness = 2,
-            ScrollBarImageColor3 = OrionLib.SelectedTheme.Stroke,
-            Visible = false,
-            CanvasSize = UDim2.new(0, 0, 0, 0)
-        }, {
-            Create("UIListLayout", { Padding = UDim.new(0, 5) }),
-            Create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 10) })
-        })
-
-        -- Update CanvasSize
-        TabHolder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            TabHolder.CanvasSize = UDim2.new(0, 0, 0, TabHolder.UIListLayout.AbsoluteContentSize.Y + 10)
-        end)
-
-        TabButton.MouseButton1Click:Connect(function()
-            for _, tab in pairs(ContentFrame:GetChildren()) do
-                if tab:IsA("ScrollingFrame") then
-                    tab.Visible = false
-                end
-            end
-            TabContainer.Visible = true
-        end)
-
-        local ElementFunction = {}
-        function ElementFunction:AddButton(ButtonConfig)
-            ButtonConfig = ButtonConfig or {}
-            ButtonConfig.Name = ButtonConfig.Name or "Button"
-            ButtonConfig.Callback = ButtonConfig.Callback or function() end
-
-            local Button = Create("TextButton", {
-                Parent = TabContainer,
-                Size = UDim2.new(1, -10, 0, 30),
-                Text = ButtonConfig.Name,
-                TextColor3 = OrionLib.SelectedTheme.Text,
-                BackgroundColor3 = OrionLib.SelectedTheme.Second,
-                Font = Enum.Font.Gotham,
-                TextSize = 14
-            }, {
-                Create("UICorner", { CornerRadius = UDim.new(0, 6) })
-            })
-
-            local function OnClick()
-                ButtonConfig.Callback()
-            end
-
-            Button.MouseButton1Click:Connect(OnClick)
-            Button.InputBegan:Connect(function(Input)
-                if Input.UserInputType == Enum.UserInputType.Touch then
-                    OnClick()
-                end
-            end)
-
-            -- Update CanvasSize for TabContainer
-            TabContainer.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabContainer.UIListLayout.AbsoluteContentSize.Y + 10)
-            end)
-        end
-
-        return ElementFunction
+            Size = UDim2.new(0, 200, 0, 0)
+        }):Play()
+        wait(0.3)
+        guiFrame.Visible = false
     end
-
-    return TabFunction
 end
 
-OrionLib.MakeWindow = MakeWindow
-return OrionLib
+-- اتصال کلیک ماوس
+button.MouseButton1Click:Connect(toggleGUI)
+
+-- پشتیبانی از لمس در موبایل
+UserInputService.TouchTapInWorld:Connect(function(touch, processed)
+    if not processed then
+        local buttonPos = button.AbsolutePosition
+        local buttonSize = button.AbsoluteSize
+        if touch.X >= buttonPos.X and touch.X <= buttonPos.X + buttonSize.X and
+           touch.Y >= buttonPos.Y and touch.Y <= buttonPos.Y + buttonSize.Y then
+            toggleGUI()
+        end
+    end
+end)
