@@ -1,73 +1,57 @@
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+-- Simple GUI library
+local GuiLibrary = {}
 
--- ایجاد ScreenGui
-local Orion = Instance.new("ScreenGui")
-Orion.Name = "SimpleImageGUI"
-Orion.Parent = game:GetService("CoreGui")
+-- Button class
+GuiLibrary.Button = {}
+GuiLibrary.Button.__index = GuiLibrary.Button
 
--- ایجاد Frame اصلی
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 150, 0, 150)
-MainFrame.Position = UDim2.new(0.5, -75, 0.5, -75)
-MainFrame.BackgroundTransparency = 1
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.Parent = Orion
+-- Create a new button
+function GuiLibrary.Button.new(parent, position, size, initialLabel)
+    local self = setmetatable({}, GuiLibrary.Button)
+    
+    -- Create Roblox GUI elements
+    self.ScreenGui = Instance.new("ScreenGui")
+    self.ScreenGui.Parent = parent
+    self.ScreenGui.ResetOnSpawn = false
+    
+    self.Button = Instance.new("TextButton")
+    self.Button.Size = UDim2.new(0, size.X, 0, size.Y)
+    self.Button.Position = UDim2.new(0, position.X, 0, position.Y)
+    self.Button.Text = initialLabel
+    self.Button.BackgroundColor3 = Color3.new(1, 1, 1) -- White background
+    self.Button.TextColor3 = Color3.new(0, 0, 0) -- Black text
+    self.Button.BorderColor3 = Color3.new(0, 0, 0) -- Black border
+    self.Button.Parent = self.ScreenGui
+    
+    self.IsOpen = false -- Tracks open/close state
+    self.Label = initialLabel
+    
+    -- Connect click event
+    self.Button.MouseButton1Click:Connect(function()
+        self:OnClick()
+    end)
+    
+    return self
+end
 
--- اضافه کردن UICorner برای گوشه‌های گرد
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 10)
-Corner.Parent = MainFrame
+-- Handle button click
+function GuiLibrary.Button:OnClick()
+    self.IsOpen = not self.IsOpen -- Toggle state
+    self.Label = self.IsOpen and "Close" or "Open" -- Update label
+    self.Button.Text = self.Label -- Update button text
+end
 
--- ایجاد ImageButton با تصویر رندوم
-local ImageButton = Instance.new("ImageButton")
-ImageButton.Size = UDim2.new(0.9, 0, 0.9, 0)
-ImageButton.Position = UDim2.new(0.05, 0, 0.05, 0)
-ImageButton.Image = "rbxassetid://2593560177" -- تصویر رندوم از Roblox Library
-ImageButton.BackgroundTransparency = 1
-ImageButton.ImageTransparency = 1
-ImageButton.Parent = MainFrame
-
--- متغیر برای وضعیت GUI
-local isOpen = false
-
--- تابع برای باز و بسته کردن GUI
-local function toggleGUI()
-    isOpen = not isOpen
-    if isOpen then
-        TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            BackgroundTransparency = 0,
-            Size = UDim2.new(0, 150, 0, 150)
-        }):Play()
-        TweenService:Create(ImageButton, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            ImageTransparency = 0
-        }):Play()
-    else
-        TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            BackgroundTransparency = 1,
-            Size = UDim2.new(0, 0, 0, 0)
-        }):Play()
-        TweenService:Create(ImageButton, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            ImageTransparency = 1
-        }):Play()
+-- Destroy the button
+function GuiLibrary.Button:Destroy()
+    if self.ScreenGui then
+        self.ScreenGui:Destroy()
     end
 end
 
--- اتصال کلیک ماوس
-ImageButton.MouseButton1Click:Connect(toggleGUI)
+-- Example usage
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player.PlayerGui
 
--- پشتیبانی از لمس موبایل
-UserInputService.TouchTap:Connect(function(touch)
-    local objects = game:GetService("GuiService"):GetGuiObjectsAtPosition(touch.X, touch.Y)
-    for _, obj in pairs(objects) do
-        if obj:IsDescendantOf(ImageButton) then
-            toggleGUI()
-            break
-        end
-    end
-end)
-
--- تابع برای اطمینان از نابودی GUI
-function OrionLib:Destroy()
-    Orion:Destroy()
-end
+-- Create a button at position (100, 100) with size 100x50
+local button = GuiLibrary.Button.new(playerGui, Vector2.new(100, 100), Vector2.new(100, 50), "Open")
