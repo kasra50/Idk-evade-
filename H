@@ -1,267 +1,308 @@
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+
+-- Wait for LocalPlayer to avoid "infinite yield" errors
+local LocalPlayer
+repeat
+    LocalPlayer = Players.LocalPlayer
+    wait()
+until LocalPlayer
 
 local OrionLib = {
-	Flags = {},
-	SelectedTheme = {
-		Main = Color3.fromRGB(25, 25, 25),
-		Second = Color3.fromRGB(32, 32, 32),
-		Stroke = Color3.fromRGB(60, 60, 60),
-		Text = Color3.fromRGB(240, 240, 240)
-	}
+    Flags = {},
+    SelectedTheme = {
+        Main = Color3.fromRGB(25, 25, 25),
+        Second = Color3.fromRGB(32, 32, 32),
+        Stroke = Color3.fromRGB(60, 60, 60),
+        Text = Color3.fromRGB(240, 240, 240)
+    }
 }
 
+-- Create ScreenGui and ensure it’s parented
 local Orion = Instance.new("ScreenGui")
 Orion.Name = "Orion"
 Orion.Parent = game:GetService("CoreGui")
 
 local function Create(Name, Props, Children)
-	local Object = Instance.new(Name)
-	for i, v in pairs(Props or {}) do
-		Object[i] = v
-	end
-	for _, child in pairs(Children or {}) do
-		child.Parent = Object
-	end
-	return Object
+    local Object = Instance.new(Name)
+    for i, v in pairs(Props or {}) do
+        Object[i] = v
+    end
+    for _, child in pairs(Children or {}) do
+        child.Parent = Object
+    end
+    return Object
 end
 
 local function AddDraggingFunctionality(DragPoint, Main)
-	local Dragging, DragInput, MousePos, FramePos
-	local ConnectionBegan, ConnectionChanged
-	local function StartDragging(Input)
-		if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-			Dragging = true
-			MousePos = Input.Position
-			FramePos = Main.Position
-			ConnectionBegan = Input.Changed:Connect(function()
-				if Input.UserInputState == Enum.UserInputState.End then
-					Dragging = false
-					ConnectionBegan:Disconnect()
-				end
-			end)
-		end
-	end
-	local function UpdateDrag(Input)
-		if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
-			DragInput = Input
-		end
-	end
-	local function MoveFrame(Input)
-		if Input == DragInput and Dragging then
-			local Delta = Input.Position - MousePos
-			TweenService:Create(Main, TweenInfo.new(0.1, Enum.EasingStyle.Linear), {
-				Position = UDim2.new(FramePos.X.Scale, FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)
-			}):Play()
-		end
-	end
-	DragPoint.InputBegan:Connect(StartDragging)
-	DragPoint.InputChanged:Connect(UpdateDrag)
-	UserInputService.InputChanged:Connect(MoveFrame)
+    if not DragPoint or not Main then
+        warn("Dragging functionality failed: DragPoint or Main is nil")
+        return
+    end
+    local Dragging, DragInput, MousePos, FramePos
+    local ConnectionBegan, ConnectionChanged
+    local function StartDragging(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = true
+            MousePos = Input.Position
+            FramePos = Main.Position
+            ConnectionBegan = Input.Changed:Connect(function()
+                if Input.UserInputState == Enum.UserInputState.End then
+                    Dragging = false
+                    ConnectionBegan:Disconnect()
+                end
+            end)
+        end
+    end
+    local function UpdateDrag(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
+            DragInput = Input
+        end
+    end
+    local function MoveFrame(Input)
+        if Input == DragInput and Dragging then
+            local Delta = Input.Position - MousePos
+            TweenService:Create(Main, TweenInfo.new(0.1, Enum.EasingStyle.Linear), {
+                Position = UDim2.new(FramePos.X.Scale, FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)
+            }):Play()
+        end
+    end
+    DragPoint.InputBegan:Connect(StartDragging)
+    DragPoint.InputChanged:Connect(UpdateDrag)
+    UserInputService.InputChanged:Connect(MoveFrame)
 end
 
 local function MakeWindow(WindowConfig)
-	local Minimized = false
-	WindowConfig = WindowConfig or {}
-	WindowConfig.Name = WindowConfig.Name or "Orion GUI"
+    local Minimized = false
+    WindowConfig = WindowConfig or {}
+    WindowConfig.Name = WindowConfig.Name or "Orion GUI"
 
-	local MainWindow = Create("Frame", {
-		Parent = Orion,
-		Position = UDim2.new(0.5, -200, 0.5, -150),
-		Size = UDim2.new(0, 400, 0, 300),
-		BackgroundColor3 = OrionLib.SelectedTheme.Main,
-		ClipsDescendants = true
-	}, {
-		Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
-		Create("UIStroke", { Color = OrionLib.SelectedTheme.Stroke })
-	})
+    -- Main Window
+    local MainWindow = Create("Frame", {
+        Parent = Orion,
+        Position = UDim2.new(0.5, -200, 0.5, -150),
+        Size = UDim2.new(0, 400, 0, 300),
+        BackgroundColor3 = OrionLib.SelectedTheme.Main,
+        ClipsDescendants = true
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+        Create("UIStroke", { Color = OrionLib.SelectedTheme.Stroke })
+    })
 
-	local DragPoint = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 30),
-		BackgroundTransparency = 1
-	})
+    if not MainWindow.Parent then
+        warn("MainWindow failed to parent to Orion")
+        return
+    end
 
-	local WindowName = Create("TextLabel", {
-		Position = UDim2.new(0, 10, 0, 0),
-		Size = UDim2.new(1, -80, 0, 30),
-		Text = WindowConfig.Name,
-		TextColor3 = OrionLib.SelectedTheme.Text,
-		Font = Enum.Font.GothamBold,
-		TextSize = 16,
-		BackgroundTransparency = 1,
-		TextXAlignment = Enum.TextXAlignment.Left
-	})
+    local DragPoint = Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundTransparency = 1
+    })
 
-	local CloseBtn = Create("TextButton", {
-		Position = UDim2.new(1, -30, 0, 5),
-		Size = UDim2.new(0, 20, 0, 20),
-		Text = "X",
-		TextColor3 = OrionLib.SelectedTheme.Text,
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		TextSize = 14
-	})
+    local WindowName = Create("TextLabel", {
+        Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -80, 0, 30),
+        Text = WindowConfig.Name,
+        TextColor3 = OrionLib.SelectedTheme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
 
-	local MinimizeBtn = Create("TextButton", {
-		Position = UDim2.new(1, -60, 0, 5),
-		Size = UDim2.new(0, 20, 0, 20),
-		Text = "-",
-		TextColor3 = OrionLib.SelectedTheme.Text,
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		TextSize = 14
-	})
+    local CloseBtn = Create("TextButton", {
+        Position = UDim2.new(1, -30, 0, 5),
+        Size = UDim2.new(0, 20, 0, 20),
+        Text = "X",
+        TextColor3 = OrionLib.SelectedTheme.Text,
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
 
-	local TabHolder = Create("ScrollingFrame", {
-		Position = UDim2.new(0, 0, 0, 30),
-		Size = UDim2.new(0, 100, 1, -30),
-		BackgroundTransparency = 1,
-		ScrollBarThickness = 2,
-		ScrollBarImageColor3 = OrionLib.SelectedTheme.Stroke,
-		CanvasSize = UDim2.new(0, 0, 0, 0)
-	}, {
-		Create("UIListLayout", { Padding = UDim.new(0, 5) }),
-		Create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingTop = UDim.new(0, 5) })
-	})
+    local MinimizeBtn = Create("TextButton", {
+        Position = UDim2.new(1, -60, 0, 5),
+        Size = UDim2.new(0, 20, 0, 20),
+        Text = "-",
+        TextColor3 = OrionLib.SelectedTheme.Text,
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        TextSize = 14
+    })
 
-	local ContentFrame = Create("Frame", {
-		Position = UDim2.new(0, 100, 0, 30),
-		Size = UDim2.new(1, -100, 1, -30),
-		BackgroundColor3 = OrionLib.SelectedTheme.Second,
-		BackgroundTransparency = 0.1
-	}, {
-		Create("UICorner", { CornerRadius = UDim.new(0, 8) })
-	})
+    local TabHolder = Create("ScrollingFrame", {
+        Position = UDim2.new(0, 0, 0, 30),
+        Size = UDim2.new(0, 100, 1, -30),
+        BackgroundTransparency = 1,
+        ScrollBarThickness = 2,
+        ScrollBarImageColor3 = OrionLib.SelectedTheme.Stroke,
+        CanvasSize = UDim2.new(0, 0, 0, 0)
+    }, {
+        Create("UIListLayout", { Padding = UDim.new(0, 5) }),
+        Create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingTop = UDim.new(0, 5) })
+    })
 
-	DragPoint.Parent = MainWindow
-	WindowName.Parent = MainWindow
-	CloseBtn.Parent = MainWindow
-	MinimizeBtn.Parent = MainWindow
-	TabHolder.Parent = MainWindow
-	ContentFrame.Parent = MainWindow
+    local ContentFrame = Create("Frame", {
+        Position = UDim2.new(0, 100, 0, 30),
+        Size = UDim2.new(1, -100, 1, -30),
+        BackgroundColor3 = OrionLib.SelectedTheme.Second,
+        BackgroundTransparency = 0.1
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 8) })
+    })
 
-	AddDraggingFunctionality(DragPoint, MainWindow)
+    -- Parenting
+    DragPoint.Parent = MainWindow
+    WindowName.Parent = MainWindow
+    CloseBtn.Parent = MainWindow
+    MinimizeBtn.Parent = MainWindow
+    TabHolder.Parent = MainWindow
+    ContentFrame.Parent = MainWindow
 
-	local ToggleButton = Create("Frame", {
-		Parent = Orion,
-		Position = UDim2.new(0, 10, 0, 10),
-		Size = UDim2.new(0, 40, 0, 40),
-		BackgroundColor3 = OrionLib.SelectedTheme.Main,
-		ZIndex = 10
-	}, {
-		Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
-		Create("UIStroke", { Color = OrionLib.SelectedTheme.Stroke }),
-		Create("TextButton", {
-			Size = UDim2.new(1, 0, 1, 0),
-			Text = "☰",
-			TextColor3 = OrionLib.SelectedTheme.Text,
-			BackgroundTransparency = 1,
-			Font = Enum.Font.Gotham,
-			TextSize = 16
-		})
-	})
+    -- Toggle Button
+    local ToggleButton = Create("Frame", {
+        Parent = Orion,
+        Position = UDim2.new(0, 10, 0, 10),
+        Size = UDim2.new(0, 40, 0, 40),
+        BackgroundColor3 = OrionLib.SelectedTheme.Main,
+        ZIndex = 10
+    }, {
+        Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+        Create("UIStroke", { Color = OrionLib.SelectedTheme.Stroke })
+    })
 
-	AddDraggingFunctionality(ToggleButton, ToggleButton)
+    local ToggleButtonClick = Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        Text = "☰",
+        TextColor3 = OrionLib.SelectedTheme.Text,
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        TextSize = 16,
+        Parent = ToggleButton
+    })
 
-	ToggleButton.TextButton.MouseButton1Click:Connect(function()
-		MainWindow.Visible = not MainWindow.Visible
-	end)
-	ToggleButton.TextButton.InputBegan:Connect(function(Input)
-		if Input.UserInputType == Enum.UserInputType.Touch then
-			MainWindow.Visible = not MainWindow.Visible
-		end
-	end)
+    if not ToggleButtonClick.Parent then
+        warn("ToggleButtonClick failed to parent to ToggleButton")
+        return
+    end
 
-	CloseBtn.MouseButton1Click:Connect(function()
-		MainWindow.Visible = false
-		ToggleButton.Visible = true
-	end)
+    -- Dragging functionality
+    AddDraggingFunctionality(DragPoint, MainWindow)
+    AddDraggingFunctionality(ToggleButton, ToggleButton)
 
-	MinimizeBtn.MouseButton1Click:Connect(function()
-		Minimized = not Minimized
-		TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-			Size = Minimized and UDim2.new(0, 200, 0, 30) or UDim2.new(0, 400, 0, 300)
-		}):Play()
-		ContentFrame.Visible = not Minimized
-		TabHolder.Visible = not Minimized
-	end)
+    -- Toggle Button Click/Touch
+    local function ToggleGUI()
+        MainWindow.Visible = not MainWindow.Visible
+    end
 
-	local TabFunction = {}
-	function TabFunction:MakeTab(TabConfig)
-		TabConfig = TabConfig or {}
-		TabConfig.Name = TabConfig.Name or "Tab"
+    ToggleButtonClick.MouseButton1Click:Connect(ToggleGUI)
+    ToggleButtonClick.InputBegan:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.Touch then
+            ToggleGUI()
+        end
+    end)
 
-		local TabButton = Create("TextButton", {
-			Parent = TabHolder,
-			Size = UDim2.new(1, -10, 0, 25),
-			Text = TabConfig.Name,
-			TextColor3 = OrionLib.SelectedTheme.Text,
-			BackgroundTransparency = 0.2,
-			BackgroundColor3 = OrionLib.SelectedTheme.Second,
-			Font = Enum.Font.Gotham,
-			TextSize = 14
-		}, {
-			Create("UICorner", { CornerRadius = UDim.new(0, 6) })
-		})
+    -- Close Button
+    CloseBtn.MouseButton1Click:Connect(function()
+        MainWindow.Visible = false
+        ToggleButton.Visible = true
+    })
 
-		local TabContainer = Create("ScrollingFrame", {
-			Parent = ContentFrame,
-			Size = UDim2.new(1, 0, 1, 0),
-			BackgroundTransparency = 1,
-			ScrollBarThickness = 2,
-			ScrollBarImageColor3 = OrionLib.SelectedTheme.Stroke,
-			Visible = false,
-			CanvasSize = UDim2.new(0, 0, 0, 0)
-		}, {
-			Create("UIListLayout", { Padding = UDim.new(0, 5) }),
-			Create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 10) })
-		})
+    -- Minimize Button
+    MinimizeBtn.MouseButton1Click:Connect(function()
+        Minimized = not Minimized
+        TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            Size = Minimized and UDim2.new(0, 200, 0, 30) or UDim2.new(0, 400, 0, 300)
+        }):Play()
+        ContentFrame.Visible = not Minimized
+        TabHolder.Visible = not Minimized
+    end)
 
-		TabHolder.CanvasSize = UDim2.new(0, 0, 0, TabHolder.UIListLayout.AbsoluteContentSize.Y + 10)
+    local TabFunction = {}
+    function TabFunction:MakeTab(TabConfig)
+        TabConfig = TabConfig or {}
+        TabConfig.Name = TabConfig.Name or "Tab"
 
-		TabButton.MouseButton1Click:Connect(function()
-			for _, tab in pairs(ContentFrame:GetChildren()) do
-				if tab:IsA("ScrollingFrame") then
-					tab.Visible = false
-				end
-			end
-			TabContainer.Visible = true
-		end)
+        local TabButton = Create("TextButton", {
+            Parent = TabHolder,
+            Size = UDim2.new(1, -10, 0, 25),
+            Text = TabConfig.Name,
+            TextColor3 = OrionLib.SelectedTheme.Text,
+            BackgroundTransparency = 0.2,
+            BackgroundColor3 = OrionLib.SelectedTheme.Second,
+            Font = Enum.Font.Gotham,
+            TextSize = 14
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(0, 6) })
+        })
 
-		local ElementFunction = {}
-		function ElementFunction:AddButton(ButtonConfig)
-			ButtonConfig = ButtonConfig or {}
-			ButtonConfig.Name = ButtonConfig.Name or "Button"
-			ButtonConfig.Callback = ButtonConfig.Callback or function() end
+        local TabContainer = Create("ScrollingFrame", {
+            Parent = ContentFrame,
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 1,
+            ScrollBarThickness = 2,
+            ScrollBarImageColor3 = OrionLib.SelectedTheme.Stroke,
+            Visible = false,
+            CanvasSize = UDim2.new(0, 0, 0, 0)
+        }, {
+            Create("UIListLayout", { Padding = UDim.new(0, 5) }),
+            Create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 10) })
+        })
 
-			local Button = Create("TextButton", {
-				Parent = TabContainer,
-				Size = UDim2.new(1, -10, 0, 30),
-				Text = ButtonConfig.Name,
-				TextColor3 = OrionLib.SelectedTheme.Text,
-				BackgroundColor3 = OrionLib.SelectedTheme.Second,
-				Font = Enum.Font.Gotham,
-				TextSize = 14
-			}, {
-				Create("UICorner", { CornerRadius = UDim.new(0, 6) })
-			})
+        -- Update CanvasSize
+        TabHolder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabHolder.CanvasSize = UDim2.new(0, 0, 0, TabHolder.UIListLayout.AbsoluteContentSize.Y + 10)
+        end)
 
-			Button.MouseButton1Click:Connect(ButtonConfig.Callback)
-			Button.InputBegan:Connect(function(Input)
-				if Input.UserInputType == Enum.UserInputType.Touch then
-					ButtonConfig.Callback()
-				end
-			end)
+        TabButton.MouseButton1Click:Connect(function()
+            for _, tab in pairs(ContentFrame:GetChildren()) do
+                if tab:IsA("ScrollingFrame") then
+                    tab.Visible = false
+                end
+            end
+            TabContainer.Visible = true
+        end)
 
-			TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabContainer.UIListLayout.AbsoluteContentSize.Y + 10)
-		end
+        local ElementFunction = {}
+        function ElementFunction:AddButton(ButtonConfig)
+            ButtonConfig = ButtonConfig or {}
+            ButtonConfig.Name = ButtonConfig.Name or "Button"
+            ButtonConfig.Callback = ButtonConfig.Callback or function() end
 
-		return ElementFunction
-	end
+            local Button = Create("TextButton", {
+                Parent = TabContainer,
+                Size = UDim2.new(1, -10, 0, 30),
+                Text = ButtonConfig.Name,
+                TextColor3 = OrionLib.SelectedTheme.Text,
+                BackgroundColor3 = OrionLib.SelectedTheme.Second,
+                Font = Enum.Font.Gotham,
+                TextSize = 14
+            }, {
+                Create("UICorner", { CornerRadius = UDim.new(0, 6) })
+            })
 
-	return TabFunction
+            local function OnClick()
+                ButtonConfig.Callback()
+            end
+
+            Button.MouseButton1Click:Connect(OnClick)
+            Button.InputBegan:Connect(function(Input)
+                if Input.UserInputType == Enum.UserInputType.Touch then
+                    OnClick()
+                end
+            end)
+
+            -- Update CanvasSize for TabContainer
+            TabContainer.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabContainer.UIListLayout.AbsoluteContentSize.Y + 10)
+            end)
+        end
+
+        return ElementFunction
+    end
+
+    return TabFunction
 end
 
 OrionLib.MakeWindow = MakeWindow
