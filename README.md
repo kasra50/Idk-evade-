@@ -1,2 +1,3 @@
-yes im new 
-im creating a new script bc the legend unknown spooky quit.
+WE'RE LIGHTINGWARE DEVELOPER
+SUPPORTING GAMES (YK WHST I MEAN)
+WITH FREEDOM NO KEY!
